@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "functions": {
+    "api/telegram-notify.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "env": {
+    "TELEGRAM_BOT_TOKEN": "8292264755:AAGFFsGQW04gQELvUORHotp8-MksUFzw_AE"
+  }
+}

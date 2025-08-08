@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ITAssist HLS Multiviewer</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+    <div class="broadcast-container">
+        <!-- Header -->
+        <header class="broadcast-header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-broadcast-tower"></i>
+                    <h1>ITAssist HLS Multiviewer</h1>
+                </div>
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span class="status-text">ON AIR</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <div class="panel-header">
+                <h2><i class="fas fa-sliders-h"></i> Control Panel</h2>
+                <button class="add-stream-btn" onclick="showAddStreamModal()">
+                    <i class="fas fa-plus"></i> Add Stream
+                </button>
+            </div>
+            
+            <div class="notification-controls">
+                <button class="notification-btn" onclick="multiViewer.toggleNotifications()" title="Toggle Telegram Notifications">
+                    <i class="fas fa-bell"></i> Notifications
+                </button>
+                <button class="notification-btn test" onclick="multiViewer.testTelegramNotification()" title="Test Telegram Notification">
+                    <i class="fas fa-paper-plane"></i> Test
+                </button>
+                <button class="notification-btn config" onclick="showTelegramConfigModal()" title="Configure Telegram">
+                    <i class="fas fa-cog"></i> Config
+                </button>
+            </div>
+            
+            <div class="stream-list" id="streamList">
+                <!-- Stream items will be added here dynamically -->
+            </div>
+        </div>
+
+        <!-- Video Grid -->
+        <div class="video-grid" id="videoGrid">
+            <!-- Video players will be added here dynamically -->
+        </div>
+
+        <!-- Telegram Configuration Modal -->
+        <div id="telegramConfigModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2><i class="fas fa-cog"></i> Telegram Configuration</h2>
+                    <span class="close" onclick="closeTelegramConfigModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="config-section">
+                        <h3>🤖 Bot Information</h3>
+                        <p><strong>Bot Token:</strong> <span id="botToken">Loading...</span></p>
+                        <p><strong>Status:</strong> <span id="configStatus">Checking...</span></p>
+                    </div>
+                    
+                    <div class="config-section">
+                        <h3>📱 Chat ID Configuration</h3>
+                        <p>To get your Chat ID:</p>
+                        <ol>
+                            <li>Open Telegram and search for <code>@itassist0_bot</code></li>
+                            <li>Send any message to the bot</li>
+                            <li>Or manually enter your Chat ID below</li>
+                        </ol>
+                        
+                        <div class="input-group">
+                            <label for="chatIdInput">Chat ID:</label>
+                            <input type="text" id="chatIdInput" placeholder="Enter your Chat ID (e.g., 123456789)">
+                            <button onclick="testChatId()" class="test-btn">
+                                <i class="fas fa-paper-plane"></i> Test
+                            </button>
+                        </div>
+                        
+                        <div class="config-actions">
+                            <button onclick="saveChatId()" class="save-btn">
+                                <i class="fas fa-save"></i> Save Configuration
+                            </button>
+                            <button onclick="resetConfig()" class="reset-btn">
+                                <i class="fas fa-trash"></i> Reset
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="config-section">
+                        <h3>📋 How to Find Your Chat ID</h3>
+                        <div class="chat-id-help">
+                            <p><strong>Method 1 - Automatic:</strong></p>
+                            <ol>
+                                <li>Send a message to <code>@itassist0_bot</code></li>
+                                <li>Click "Auto-Detect" below</li>
+                            </ol>
+                            
+                            <p><strong>Method 2 - Manual:</strong></p>
+                            <ol>
+                                <li>Send a message to <code>@userinfobot</code> on Telegram</li>
+                                <li>Copy the Chat ID number</li>
+                                <li>Paste it in the input field above</li>
+                            </ol>
+                            
+                            <button onclick="autoDetectChatId()" class="auto-detect-btn">
+                                <i class="fas fa-search"></i> Auto-Detect Chat ID
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Stream Modal -->
+        <div class="modal" id="addStreamModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-plus-circle"></i> Add New Stream</h3>
+                    <button class="close-btn" onclick="hideAddStreamModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="streamName">Stream Name:</label>
+                        <input type="text" id="streamName" placeholder="Enter stream name">
+                    </div>
+                    <div class="form-group">
+                        <label for="streamUrl">HLS URL:</label>
+                        <input type="url" id="streamUrl" placeholder="https://example.com/stream.m3u8">
+                    </div>
+                    <div class="form-group">
+                        <label for="streamLayout">Layout Position:</label>
+                        <select id="streamLayout">
+                            <option value="1">Position 1</option>
+                            <option value="2">Position 2</option>
+                            <option value="3">Position 3</option>
+                            <option value="4">Position 4</option>
+                            <option value="5">Position 5</option>
+                            <option value="6">Position 6</option>
+                            <option value="7">Position 7</option>
+                            <option value="8">Position 8</option>
+                            <option value="9">Position 9</option>
+                            <option value="10">Position 10</option>
+                            <option value="11">Position 11</option>
+                            <option value="12">Position 12</option>
+                            <option value="13">Position 13</option>
+                            <option value="14">Position 14</option>
+                            <option value="15">Position 15</option>
+                            <option value="16">Position 16</option>
+                            <option value="17">Position 17</option>
+                            <option value="18">Position 18</option>
+                            <option value="19">Position 19</option>
+                            <option value="20">Position 20</option>
+                            <option value="21">Position 21</option>
+                            <option value="22">Position 22</option>
+                            <option value="23">Position 23</option>
+                            <option value="24">Position 24</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="hideAddStreamModal()">Cancel</button>
+                    <button class="btn-primary" onclick="addStream()">Add Stream</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid Layout Controls -->
+        <div class="layout-controls">
+            <button class="layout-btn" onclick="setGridLayout(1)">
+                <i class="fas fa-square"></i> 1x1
+            </button>
+            <button class="layout-btn" onclick="setGridLayout(2)">
+                <i class="fas fa-th-large"></i> 2x1
+            </button>
+            <button class="layout-btn" onclick="setGridLayout(4)">
+                <i class="fas fa-th"></i> 2x2
+            </button>
+            <button class="layout-btn" onclick="setGridLayout(6)">
+                <i class="fas fa-th-large"></i> 3x2
+            </button>
+            <button class="layout-btn" onclick="setGridLayout(24)">
+                <i class="fas fa-th"></i> 4x6
+            </button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

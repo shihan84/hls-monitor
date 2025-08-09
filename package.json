@@ -2,14 +2,15 @@
   "name": "itassist-hls-multiviewer",
   "version": "1.0.0",
   "description": "ITAssist HLS Multiviewer with Telegram Notifications",
-  "main": "index.html",
+  "main": "server.js",
   "scripts": {
-    "dev": "python -m http.server 8000",
-    "start": "python -m http.server 8000"
+    "start": "node server.js"
   },
   "dependencies": {
-    "axios": "^1.6.0"
+    "axios": "^1.6.0",
+    "express": "^4.19.2"
   },
+
   "keywords": [
     "hls",
     "multiviewer",

@@ -8,8 +8,12 @@ class HLSMultiViewer {
         this.retryAttempts = new Map(); // Track retry attempts per stream
         this.maxRetries = 3; // Maximum retry attempts
         this.retryDelay = 5000; // 5 seconds delay between retries
+        this.errorNotificationCooldown = new Map(); // Track notification cooldowns to prevent spam
+        this.notificationDebounce = null; // Global notification debounce timer
         this.init();
     }
+
+
 
     init() {
         this.setupEventListeners();
@@ -131,7 +135,14 @@ class HLSMultiViewer {
                     console.log('Auto-play prevented:', e);
                 });
                 this.updateVideoOverlay(stream.id, 'playing');
-                this.resetWatchdog(stream.id); // Reset watchdog on successful start
+                this.resetWatchdog(stream.id);
+
+                // Clear any existing error notification cooldown for this stream
+                if (this.errorNotificationCooldown.has(stream.id)) {
+                    clearTimeout(this.errorNotificationCooldown.get(stream.id));
+                    this.errorNotificationCooldown.delete(stream.id);
+                }
+
                 this.sendTelegramNotification(
                     `Stream started successfully`,
                     stream.name,
@@ -141,18 +152,26 @@ class HLSMultiViewer {
 
             hls.on(Hls.Events.ERROR, (event, data) => {
                 console.error('HLS Error:', data);
-                this.updateVideoOverlay(stream.id, 'error', data.details);
-                
-                // Send Telegram notification
-                this.sendTelegramNotification(
-                    `HLS Error: ${data.details || 'Unknown error'}`,
-                    stream.name,
-                    'HLS Error'
-                );
-                
-                // Start watchdog for automatic retry
-                this.startWatchdog(stream);
+
+                if (data.fatal) {
+                    switch (data.details) {
+                        case Hls.ErrorDetails.BUFFER_STALLED_ERROR:
+                        case Hls.ErrorDetails.MEDIA_MSE_ERROR:
+                            console.warn(`Recoverable HLS media error: ${data.details}. Attempting to recover...`);
+                            this.updateVideoOverlay(stream.id, 'reconnecting');
+                            hls.recoverMediaError();
+                            break;
+                        default:
+                            // For other fatal errors, show error and use the watchdog to restart
+                            this.updateVideoOverlay(stream.id, 'error', 'Stream failed. Retrying...');
+                            this.startWatchdog(stream); // Watchdog will handle the notification
+                            break;
+                    }
+                }
             });
+
+
+
 
             this.hlsInstances.set(stream.id, hls);
         } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
@@ -164,6 +183,13 @@ class HLSMultiViewer {
                 });
                 this.updateVideoOverlay(stream.id, 'playing');
                 this.resetWatchdog(stream.id);
+                
+                // Clear any existing error notification cooldown
+                if (this.errorNotificationCooldown.has(stream.id)) {
+                    clearTimeout(this.errorNotificationCooldown.get(stream.id));
+                    this.errorNotificationCooldown.delete(stream.id);
+                }
+
                 this.sendTelegramNotification(
                     `Stream started successfully (native HLS)`,
                     stream.name,
@@ -173,13 +199,24 @@ class HLSMultiViewer {
             
             videoElement.addEventListener('error', (e) => {
                 console.error('Video Error:', e);
-                this.sendTelegramNotification(
-                    `Native HLS Error: ${e.message || 'Unknown error'}`,
-                    stream.name,
-                    'Native HLS Error'
-                );
-                this.startWatchdog(stream);
+                
+                // Check cooldown to prevent spam
+                if (!this.errorNotificationCooldown.has(stream.id)) {
+                    this.sendTelegramNotification(
+                        `Native HLS Error: ${e.message || 'Unknown error'}`,
+                        stream.name,
+                        'Native HLS Error'
+                    );
+
+                    // Set a 60-second cooldown to prevent spam
+                    this.errorNotificationCooldown.set(stream.id, setTimeout(() => {
+                        this.errorNotificationCooldown.delete(stream.id);
+                    }, 60000));
+
+                    this.startWatchdog(stream);
+                }
             });
+
         } else {
             this.updateVideoOverlay(stream.id, 'error', 'HLS not supported');
             this.sendTelegramNotification(
@@ -216,6 +253,7 @@ class HLSMultiViewer {
             }
         });
         videoGrid.innerHTML = '';
+        const streamsToStart = []; // Collect streams to start
 
         // Determine slot count for current layout
         const slotCount = this.currentLayout === 24 ? 24 : (this.currentLayout === 6 ? 6 : (this.currentLayout === 4 ? 4 : (this.currentLayout === 2 ? 2 : 1)));
@@ -260,7 +298,7 @@ class HLSMultiViewer {
                 videoPlayer.appendChild(overlay);
 
                 if (!currentVideos[streamForSlot.id] && streamForSlot.active) {
-                    this.startStream(streamForSlot);
+                    streamsToStart.push(streamForSlot);
                 }
             } else {
                 // Empty slot
@@ -284,7 +322,15 @@ class HLSMultiViewer {
             }
             videoGrid.appendChild(videoPlayer);
         }
+        
+        // Stagger the start of each stream to prevent overwhelming the browser
+        streamsToStart.forEach((stream, index) => {
+            setTimeout(() => {
+                this.startStream(stream);
+            }, index * 200); // 200ms delay between each stream start
+        });
     }
+
 
     createVideoPlayer(stream) {
         const videoGrid = document.getElementById('videoGrid');
@@ -340,6 +386,14 @@ class HLSMultiViewer {
             case 'playing':
                 overlay.style.display = 'none';
                 break;
+            case 'reconnecting':
+                overlay.innerHTML = `
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <h3>Reconnecting...</h3>
+                    <p>Attempting to recover stream</p>
+                `;
+                overlay.style.display = 'flex';
+                break;
             case 'error':
                 overlay.innerHTML = `
                     <i class="fas fa-exclamation-triangle"></i>
@@ -358,6 +412,7 @@ class HLSMultiViewer {
                 break;
         }
     }
+
 
     // Layout Management
     setGridLayout(layout) {
@@ -518,14 +573,18 @@ class HLSMultiViewer {
         if (stored) {
             try {
                 const streamsArray = JSON.parse(stored);
-                streamsArray.forEach(stream => {
-                    this.streams.set(stream.id, stream);
-                });
+                if (Array.isArray(streamsArray)) {
+                    // Re-create the map from the stored array of stream objects
+                    this.streams = new Map(streamsArray.map(stream => [stream.id, stream]));
+                }
             } catch (e) {
                 console.error('Failed to load streams from storage:', e);
+                // If parsing fails, clear the corrupted data to prevent future errors
+                localStorage.removeItem('hlsMultiViewerStreams');
             }
         }
     }
+
 
     // Export/Import Functions
     exportStreams() {
@@ -566,11 +625,19 @@ class HLSMultiViewer {
     // Telegram Notification System
     async sendTelegramNotification(message, streamName = 'Unknown', errorType = 'Error') {
         if (!this.notificationEnabled) return;
+
+        // Check for an active debounce timer to prevent notification storms
+        if (this.notificationDebounce) {
+            return; // Exit if we are in a cooldown period
+        }
         
-        // Determine API endpoint based on environment
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const apiBase = isLocalhost ? 'http://localhost:3001' : '/api/telegram-notify';
+        const apiBase = '/api/telegram-notify';
         
+        // Set a 5-second global debounce to prevent future calls
+        this.notificationDebounce = setTimeout(() => {
+            this.notificationDebounce = null;
+        }, 15000);
+
         try {
             const response = await fetch(`${apiBase}/notify`, {
                 method: 'POST',
@@ -595,30 +662,36 @@ class HLSMultiViewer {
         }
     }
 
+
     // Watchdog System
     startWatchdog(stream) {
         const streamId = stream.id;
-        const retryCount = this.retryAttempts.get(streamId) || 0;
-        
+        let retryCount = this.retryAttempts.get(streamId) || 0;
+
         if (retryCount >= this.maxRetries) {
-            this.sendTelegramNotification(
-                `Stream has failed ${this.maxRetries} times and will not be retried automatically.`,
-                stream.name,
-                'Max Retries Exceeded'
-            );
+            // No more retries, so we don't send another notification here. The first one was enough.
+            console.error(`Stream ${stream.name} failed max retries.`);
             return;
         }
+
+        // Only send notification on the FIRST failure detection
+        if (retryCount === 0) {
+            this.sendTelegramNotification(
+                `Stream dropped. Attempting to reconnect...`,
+                stream.name,
+                'Stream Dropped'
+            );
+        }
+        
+        retryCount++;
+        this.retryAttempts.set(streamId, retryCount);
         
         setTimeout(() => {
-            this.retryAttempts.set(streamId, retryCount + 1);
-            this.sendTelegramNotification(
-                `Attempting to restart stream (attempt ${retryCount + 1}/${this.maxRetries})`,
-                stream.name,
-                'Retry Attempt'
-            );
+            console.log(`Retrying stream ${stream.name}, attempt ${retryCount}`);
             this.startStream(stream);
         }, this.retryDelay);
     }
+
 
     resetWatchdog(streamId) {
         this.retryAttempts.delete(streamId);
@@ -634,9 +707,7 @@ class HLSMultiViewer {
     }
 
     async testTelegramNotification() {
-        // Determine API endpoint based on environment
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const apiBase = isLocalhost ? 'http://localhost:3001' : '/api/telegram-notify';
+        const apiBase = '/api/telegram-notify';
         
         try {
             const response = await fetch(`${apiBase}/test`);
@@ -654,9 +725,7 @@ class HLSMultiViewer {
 
     // Telegram Configuration Functions
     async loadTelegramConfig() {
-        // Determine API endpoint based on environment
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const apiBase = isLocalhost ? 'http://localhost:3001' : '/api/telegram-notify';
+        const apiBase = '/api/telegram-notify';
         
         try {
             const response = await fetch(`${apiBase}/config`);
@@ -683,9 +752,7 @@ class HLSMultiViewer {
             return;
         }
 
-        // Determine API endpoint based on environment
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const apiBase = isLocalhost ? 'http://localhost:3001' : '/api/telegram-notify';
+        const apiBase = '/api/telegram-notify';
 
         try {
             const response = await fetch(`${apiBase}/config`, {
@@ -716,9 +783,7 @@ class HLSMultiViewer {
             return;
         }
 
-        // Determine API endpoint based on environment
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const apiBase = isLocalhost ? 'http://localhost:3001' : '/api/telegram-notify';
+        const apiBase = '/api/telegram-notify';
 
         try {
             const response = await fetch(`${apiBase}/config`, {
@@ -747,9 +812,7 @@ class HLSMultiViewer {
             return;
         }
 
-        // Determine API endpoint based on environment
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const apiBase = isLocalhost ? 'http://localhost:3001' : '/api/telegram-notify';
+        const apiBase = '/api/telegram-notify';
 
         try {
             const response = await fetch(`${apiBase}/reset`, {
@@ -771,9 +834,7 @@ class HLSMultiViewer {
     }
 
     async autoDetectChatId() {
-        // Determine API endpoint based on environment
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const apiBase = isLocalhost ? 'http://localhost:3001' : '/api/telegram-notify';
+        const apiBase = '/api/telegram-notify';
         
         try {
             const response = await fetch(`${apiBase}/test`);

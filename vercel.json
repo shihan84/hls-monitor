@@ -2,22 +2,35 @@
   "version": 2,
   "builds": [
     {
+      "src": "server.js",
+      "use": "@vercel/node"
+    },
+    {
       "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "styles.css",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "script.js",
       "use": "@vercel/static"
     }
   ],
   "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/server.js"
+    },
     {
       "src": "/(.*)",
       "dest": "/index.html"
     }
   ],
   "functions": {
-    "api/telegram-notify.js": {
+    "server.js": {
       "runtime": "nodejs18.x"
     }
-  },
-  "env": {
-    "TELEGRAM_BOT_TOKEN": "8292264755:AAGFFsGQW04gQELvUORHotp8-MksUFzw_AE"
   }
 }

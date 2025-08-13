@@ -1,121 +1,240 @@
-# 🚀 Deployment Guide - ITAssist HLS Multiviewer
+# Vercel Deployment Guide - ITAssist HLS Multiviewer
 
-## GitHub + Vercel Deployment
+This guide provides step-by-step instructions to deploy the ITAssist HLS Multiviewer project on Vercel.
 
-This guide will help you deploy your ITAssist HLS Multiviewer to Vercel via GitHub.
+## 📋 Prerequisites
 
-### 📋 Prerequisites
+- Node.js 18+ installed locally
+- Vercel CLI installed globally: `npm i -g vercel`
+- Git repository initialized (recommended)
+- Telegram Bot Token and Chat ID
 
-1. **GitHub Account** - Create a repository
-2. **Vercel Account** - Sign up at [vercel.com](https://vercel.com)
-3. **Telegram Bot** - Already configured ✅
+## 🚀 Quick Deployment Steps
 
-### 🔧 Step 1: Prepare Your Repository
+### 1. Environment Variables Setup
 
-1. **Create a new GitHub repository**
-2. **Upload all files** to your repository:
+Create a `.env` file in your project root:
+```bash
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+TELEGRAM_CHAT_ID=your_chat_id_here
+```
+
+**Important:** Never commit `.env` file to git. Add it to `.gitignore`.
+
+### 2. Update Vercel Configuration
+
+The project already includes `vercel.json`. Update it with your configuration:
+
+```json
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "functions": {
+    "server.js": {
+      "runtime": "nodejs18.x"
+    }
+  }
+}
+```
+
+### 3. Install Dependencies
+
+```bash
+npm install
+```
+
+### 4. Deploy to Vercel
+
+#### Option A: Using Vercel CLI (Recommended)
+
+1. **Login to Vercel:**
+   ```bash
+   vercel login
    ```
-   📁 Your Repository
-   ├── 📄 index.html
-   ├── 📄 styles.css
-   ├── 📄 script.js
-   ├── 📄 package.json
-   ├── 📄 vercel.json
-   ├── 📁 api/
-   │   └── 📄 telegram-notify.js
-   ├── 📄 README.md
-   ├── 📄 DEPLOYMENT.md
-   └── 📄 sample-streams.json
+
+2. **Deploy the project:**
+   ```bash
+   vercel --prod
    ```
 
-### 🔧 Step 2: Deploy to Vercel
+3. **Set environment variables during deployment:**
+   - When prompted, add your environment variables:
+     - `TELEGRAM_BOT_TOKEN`
+     - `TELEGRAM_CHAT_ID`
 
-1. **Go to [vercel.com](https://vercel.com)**
-2. **Click "New Project"**
-3. **Import your GitHub repository**
-4. **Configure project settings:**
-   - **Framework Preset**: Other
-   - **Root Directory**: `./` (default)
-   - **Build Command**: Leave empty
-   - **Output Directory**: Leave empty
+#### Option B: Using Vercel Dashboard
 
-### 🔧 Step 3: Environment Variables
+1. **Connect your repository:**
+   - Go to [vercel.com](https://vercel.com)
+   - Click "New Project"
+   - Import your Git repository
 
-In your Vercel project dashboard:
+2. **Configure project:**
+   - Framework: **Other**
+   - Root Directory: `./`
+   - Build Command: `npm run build` (or leave empty)
+   - Output Directory: `./`
 
-1. **Go to Settings → Environment Variables**
-2. **Add the following variable:**
+3. **Add Environment Variables:**
+   - Go to Project Settings → Environment Variables
+   - Add:
+     - `TELEGRAM_BOT_TOKEN`
+     - `TELEGRAM_CHAT_ID`
+
+4. **Deploy:**
+   - Click "Deploy" button
+
+## 🔧 Configuration Details
+
+### Telegram Bot Setup
+
+1. **Create a Telegram Bot:**
+   - Message [@BotFather](https://t.me/botfather)
+   - Create new bot: `/newbot`
+   - Save the bot token
+
+2. **Get Chat ID:**
+   - Add your bot to your group/channel
+   - Send a message to the group
+   - Visit: `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates`
+   - Find your chat ID (usually negative for groups)
+
+### Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `TELEGRAM_BOT_TOKEN` | Your bot token from @BotFather | `123456789:ABCdefGHIjklMNOpqrsTUVwxyz` |
+| `TELEGRAM_CHAT_ID` | Target chat/group ID | `-1001234567890` |
+
+## 🧪 Testing Your Deployment
+
+### Test API Endpoints
+
+After deployment, test your API endpoints:
+
+1. **Health Check:**
    ```
-   Name: TELEGRAM_BOT_TOKEN
-   Value: 8292264755:AAGFFsGQW04gQELvUORHotp8-MksUFzw_AE
-   Environment: Production
+   GET https://your-domain.vercel.app/api/telegram-notify/health
    ```
 
-### 🔧 Step 4: Deploy
+2. **Test Notification:**
+   ```
+   GET https://your-domain.vercel.app/api/telegram-notify/test
+   ```
 
-1. **Click "Deploy"**
-2. **Wait for deployment to complete**
-3. **Your app will be available at**: `https://your-project-name.vercel.app`
+3. **Send Custom Notification:**
+   ```
+   POST https://your-domain.vercel.app/api/telegram-notify/notify
+   Content-Type: application/json
 
-### ✅ Features Available in Production
+   {
+     "message": "Test message from deployment",
+     "stream_name": "Test Stream",
+     "error_type": "Test Alert"
+   }
+   ```
 
-- ✅ **HLS Multi-Viewer** - View multiple streams simultaneously
-- ✅ **Telegram Notifications** - Real-time alerts to your group
-- ✅ **Watchdog System** - Automatic retry with notifications
-- ✅ **Layout Controls** - 1x1, 2x1, 2x2, 3x2, 4x6 grids
-- ✅ **Stream Management** - Add/remove streams
-- ✅ **Local Storage** - Streams persist between sessions
+## 🛠️ Development vs Production
 
-### 🔧 Step 5: Test Your Deployment
+### Local Development
+```bash
+npm start
+# Server runs on http://localhost:3000
+```
 
-1. **Open your Vercel URL**
-2. **Click "Config" button** in notification controls
-3. **Test Telegram notifications**
-4. **Add HLS streams** and verify notifications work
+### Production (Vercel)
+- Static files served from CDN
+- API functions serverless
+- Auto-scaling based on demand
+- Global edge network
 
-### 📱 Telegram Integration
+## 📁 Project Structure
 
-Your app will automatically send notifications to:
-- **Chat ID**: `-1002894846288` (Streaming Status group)
-- **Bot**: `@itassist0_bot`
+```
+├── index.html          # Main HTML file
+├── styles.css          # CSS styles
+├── script.js           # Frontend JavaScript
+├── server.js           # Express server (for Vercel)
+├── api/
+│   └── telegram-notify.js  # Serverless API function
+├── vercel.json         # Vercel configuration
+├── package.json        # Dependencies
+└── .env               # Environment variables (not committed)
+```
 
-### 🔄 Automatic Updates
+## 🔄 Continuous Deployment
 
-- **Push to GitHub** → **Automatic Vercel deployment**
-- **No manual deployment needed**
-- **Instant updates** when you commit changes
+### GitHub Integration
+1. Push your code to GitHub
+2. Connect repository to Vercel
+3. Automatic deployments on push to main branch
 
-### 🛠️ Troubleshooting
+### Branch Previews
+- Each pull request gets a unique preview URL
+- Test changes before merging
 
-#### If notifications don't work:
-1. **Check Vercel logs** in dashboard
-2. **Verify environment variables** are set
-3. **Test bot token** manually
-4. **Check Chat ID** is correct
+## 🚨 Troubleshooting
 
-#### If streams don't load:
-1. **Check CORS** - Vercel handles this automatically
-2. **Verify HLS URLs** are accessible
-3. **Check browser console** for errors
+### Common Issues
 
-### 📊 Monitoring
+1. **Environment Variables Not Working:**
+   - Ensure variables are set in Vercel dashboard
+   - Check for typos in variable names
+   - Redeploy after adding variables
 
-- **Vercel Analytics** - Track usage
-- **Telegram Notifications** - Monitor stream health
-- **Browser Console** - Debug issues
+2. **API 404 Errors:**
+   - Verify routes in `vercel.json`
+   - Check function naming in `api/` directory
+   - Ensure server.js is properly configured
 
-### 🔒 Security Notes
+3. **Telegram Notifications Not Sending:**
+   - Verify bot token is correct
+   - Check bot has permission to send messages
+   - Ensure chat ID is correct (negative for groups)
 
-- **Bot token** is stored securely in Vercel
-- **No sensitive data** in client-side code
-- **HTTPS** enabled automatically by Vercel
+### Debug Commands
 
-### 🎉 Success!
+```bash
+# Check Vercel logs
+vercel logs your-project-name
 
-Your ITAssist HLS Multiviewer is now:
-- ✅ **Live on the web**
-- ✅ **Telegram notifications working**
-- ✅ **Auto-deploying from GitHub**
-- ✅ **Production ready**
+# Redeploy with logs
+vercel --prod --debug
+```
 
-**Share your Vercel URL** with your team! 🚀
+## 📞 Support
+
+For issues or questions:
+- Check Vercel documentation: [vercel.com/docs](https://vercel.com/docs)
+- Telegram Bot API: [core.telegram.org/bots/api](https://core.telegram.org/bots/api)
+- Open an issue in this repository
+
+## ✅ Deployment Checklist
+
+- [ ] Environment variables configured
+- [ ] Telegram bot created and added to group
+- [ ] Chat ID obtained
+- [ ] Vercel CLI installed (if using CLI)
+- [ ] Repository connected to Vercel
+- [ ] Successful deployment
+- [ ] API endpoints tested
+- [ ] Telegram notifications working

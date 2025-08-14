@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ITAssist HLS Multiviewer</title>
+    <title>ITAssist HLS Multiviewer - Broadcast Edition</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&family=Fira+Code&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
@@ -14,12 +15,12 @@
         <header class="broadcast-header">
             <div class="header-content">
                 <div class="logo">
-                    <i class="fas fa-broadcast-tower"></i>
-                    <h1>ITAssist HLS Multiviewer</h1>
+                    <i class="fas fa-satellite-dish"></i>
+                    <h1>HLS Broadcaster</h1>
                 </div>
                 <div class="status-indicator">
                     <span class="status-dot"></span>
-                    <span class="status-text">ON AIR</span>
+                    <span class="status-text">LIVE</span>
                 </div>
             </div>
         </header>
@@ -27,7 +28,7 @@
         <!-- Control Panel -->
         <div class="control-panel">
             <div class="panel-header">
-                <h2><i class="fas fa-sliders-h"></i> Control Panel</h2>
+                <h2><i class="fas fa-cogs"></i> Controls</h2>
                 <button class="add-stream-btn" onclick="showAddStreamModal()">
                     <i class="fas fa-plus"></i> Add Stream
                 </button>
@@ -35,13 +36,13 @@
             
             <div class="notification-controls">
                 <button class="notification-btn" onclick="multiViewer.toggleNotifications()" title="Toggle Telegram Notifications">
-                    <i class="fas fa-bell"></i> Notifications
+                    <i class="fas fa-bell-slash"></i> Mute
                 </button>
                 <button class="notification-btn test" onclick="multiViewer.testTelegramNotification()" title="Test Telegram Notification">
                     <i class="fas fa-paper-plane"></i> Test
                 </button>
                 <button class="notification-btn config" onclick="showTelegramConfigModal()" title="Configure Telegram">
-                    <i class="fas fa-cog"></i> Config
+                    <i class="fas fa-wrench"></i> Config
                 </button>
             </div>
             
@@ -59,61 +60,43 @@
         <div id="telegramConfigModal" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2><i class="fas fa-cog"></i> Telegram Configuration</h2>
-                    <span class="close" onclick="closeTelegramConfigModal()">&times;</span>
+                    <h2><i class="fab fa-telegram-plane"></i> Telegram Setup</h2>
+                    <span class="close-btn" onclick="closeTelegramConfigModal()"><i class="fas fa-times"></i></span>
                 </div>
                 <div class="modal-body">
                     <div class="config-section">
-                        <h3>🤖 Bot Information</h3>
-                        <p><strong>Bot Token:</strong> <span id="botToken">Loading...</span></p>
+                        <h3><i class="fas fa-robot"></i> Bot Status</h3>
+                        <p><strong>Token:</strong> <span id="botToken">Loading...</span></p>
                         <p><strong>Status:</strong> <span id="configStatus">Checking...</span></p>
                     </div>
                     
                     <div class="config-section">
-                        <h3>📱 Chat ID Configuration</h3>
-                        <p>To get your Chat ID:</p>
-                        <ol>
-                            <li>Open Telegram and search for <code>@itassist0_bot</code></li>
-                            <li>Send any message to the bot</li>
-                            <li>Or manually enter your Chat ID below</li>
-                        </ol>
-                        
+                        <h3><i class="fas fa-user-friends"></i> Chat ID</h3>
                         <div class="input-group">
-                            <label for="chatIdInput">Chat ID:</label>
-                            <input type="text" id="chatIdInput" placeholder="Enter your Chat ID (e.g., 123456789)">
+                            <label for="chatIdInput">Your Chat ID:</label>
+                            <input type="text" id="chatIdInput" placeholder="e.g., -1001234567890">
+                        </div>
+                        <div class="config-actions">
+                            <button onclick="saveChatId()" class="save-btn">
+                                <i class="fas fa-save"></i> Save
+                            </button>
                             <button onclick="testChatId()" class="test-btn">
                                 <i class="fas fa-paper-plane"></i> Test
                             </button>
-                        </div>
-                        
-                        <div class="config-actions">
-                            <button onclick="saveChatId()" class="save-btn">
-                                <i class="fas fa-save"></i> Save Configuration
-                            </button>
                             <button onclick="resetConfig()" class="reset-btn">
-                                <i class="fas fa-trash"></i> Reset
+                                <i class="fas fa-undo"></i> Reset
                             </button>
                         </div>
                     </div>
                     
                     <div class="config-section">
-                        <h3>📋 How to Find Your Chat ID</h3>
+                        <h3><i class="fas fa-question-circle"></i> How to get your Chat ID</h3>
                         <div class="chat-id-help">
-                            <p><strong>Method 1 - Automatic:</strong></p>
-                            <ol>
-                                <li>Send a message to <code>@itassist0_bot</code></li>
-                                <li>Click "Auto-Detect" below</li>
-                            </ol>
-                            
-                            <p><strong>Method 2 - Manual:</strong></p>
-                            <ol>
-                                <li>Send a message to <code>@userinfobot</code> on Telegram</li>
-                                <li>Copy the Chat ID number</li>
-                                <li>Paste it in the input field above</li>
-                            </ol>
-                            
+                            <p>1. Add <code>@itassist0_bot</code> to your Telegram group.</p>
+                            <p>2. Send a message to the group.</p>
+                            <p>3. Click the button below to detect the ID.</p>
                             <button onclick="autoDetectChatId()" class="auto-detect-btn">
-                                <i class="fas fa-search"></i> Auto-Detect Chat ID
+                                <i class="fas fa-search-location"></i> Auto-Detect
                             </button>
                         </div>
                     </div>
@@ -125,7 +108,7 @@
         <div class="modal" id="addStreamModal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3><i class="fas fa-plus-circle"></i> Add New Stream</h3>
+                    <h3><i class="fas fa-video-plus"></i> Add New Stream</h3>
                     <button class="close-btn" onclick="hideAddStreamModal()">
                         <i class="fas fa-times"></i>
                     </button>
@@ -133,39 +116,16 @@
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="streamName">Stream Name:</label>
-                        <input type="text" id="streamName" placeholder="Enter stream name">
+                        <input type="text" id="streamName" placeholder="e.g., Main Camera">
                     </div>
                     <div class="form-group">
                         <label for="streamUrl">HLS URL:</label>
-                        <input type="url" id="streamUrl" placeholder="https://example.com/stream.m3u8">
+                        <input type="url" id="streamUrl" placeholder="https://your-stream-url/playlist.m3u8">
                     </div>
                     <div class="form-group">
                         <label for="streamLayout">Layout Position:</label>
                         <select id="streamLayout">
-                            <option value="1">Position 1</option>
-                            <option value="2">Position 2</option>
-                            <option value="3">Position 3</option>
-                            <option value="4">Position 4</option>
-                            <option value="5">Position 5</option>
-                            <option value="6">Position 6</option>
-                            <option value="7">Position 7</option>
-                            <option value="8">Position 8</option>
-                            <option value="9">Position 9</option>
-                            <option value="10">Position 10</option>
-                            <option value="11">Position 11</option>
-                            <option value="12">Position 12</option>
-                            <option value="13">Position 13</option>
-                            <option value="14">Position 14</option>
-                            <option value="15">Position 15</option>
-                            <option value="16">Position 16</option>
-                            <option value="17">Position 17</option>
-                            <option value="18">Position 18</option>
-                            <option value="19">Position 19</option>
-                            <option value="20">Position 20</option>
-                            <option value="21">Position 21</option>
-                            <option value="22">Position 22</option>
-                            <option value="23">Position 23</option>
-                            <option value="24">Position 24</option>
+                            <!-- Options will be populated by script.js -->
                         </select>
                     </div>
                 </div>
@@ -178,21 +138,11 @@
 
         <!-- Grid Layout Controls -->
         <div class="layout-controls">
-            <button class="layout-btn" onclick="setGridLayout(1)">
-                <i class="fas fa-square"></i> 1x1
-            </button>
-            <button class="layout-btn" onclick="setGridLayout(2)">
-                <i class="fas fa-th-large"></i> 2x1
-            </button>
-            <button class="layout-btn" onclick="setGridLayout(4)">
-                <i class="fas fa-th"></i> 2x2
-            </button>
-            <button class="layout-btn" onclick="setGridLayout(6)">
-                <i class="fas fa-th-large"></i> 3x2
-            </button>
-            <button class="layout-btn" onclick="setGridLayout(24)">
-                <i class="fas fa-th"></i> 4x6
-            </button>
+            <button class="layout-btn" onclick="setGridLayout(1)"><i class="fas fa-square"></i></button>
+            <button class="layout-btn" onclick="setGridLayout(2)"><i class="fas fa-th-large"></i></button>
+            <button class="layout-btn" onclick="setGridLayout(4)"><i class="fas fa-th"></i></button>
+            <button class="layout-btn" onclick="setGridLayout(6)"><i class="fas fa-grip-horizontal"></i></button>
+            <button class="layout-btn" onclick="setGridLayout(24)"><i class="fas fa-border-all"></i></button>
         </div>
     </div>
 
